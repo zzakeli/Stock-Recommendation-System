@@ -1,88 +1,174 @@
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from tensorflow.keras.layers import Dropout
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv1D, LSTM, Dense, Flatten
+import matplotlib.pyplot as plt
+from tensorflow.keras.layers import Input, Embedding, Dropout, Conv1D, LSTM, Dense, Flatten, Concatenate
+from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_squared_error
 
-def create_sequences(data, seq_length):
-    X, y = [], []
+def compute_rsi(data, window=14):
+    """Computes the Relative Strength Index (RSI)"""
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+def create_sequences(data, stock_id, seq_length):
+    """Creates sequences for LSTM, including stock identifier"""
+    X, y, stock_labels = [], [], []
     for i in range(len(data) - seq_length):
         X.append(data[i:i + seq_length])
-        y.append(data[i + seq_length, 2])  # Predicting Close price
-    return np.array(X), np.array(y)
+        y.append(data[i + seq_length, 2])  # Predict Close price
+        stock_labels.append(stock_id)  # Append stock identifier
+    return np.array(X), np.array(y), np.array(stock_labels)
 
 # Define stock symbols
 stock_symbols = ['AAPL', 'GOOGL', 'TSLA', 'AMZN', 'MSFT', 'META', 'NVDA']
+start_date, end_date = '2020-01-01', '2025-03-29'
+seq_length = 60
 
-# Define date range for historical data
-start_date = '2020-01-01'
-end_date = '2025-03-29'
+# Store combined data
+all_sequences, all_labels, all_stock_ids = [], [], []
+global_scaler = MinMaxScaler()
 
-seq_length = 60  # Define sequence length
-predictions = {}
+# Load data for all stocks
+stock_mapping = {symbol: idx for idx, symbol in enumerate(stock_symbols)}
 
+global_data = None
 for symbol in stock_symbols:
-    # Fetch historical stock data
     stock_data = yf.download(symbol, start=start_date, end=end_date)
     
-    # Extract VOCHL features (Volume, Open, Close, High, Low)
-    stock_features = stock_data[['Volume', 'Open', 'Close', 'High', 'Low']].values
+    # Calculate SMA, EMA, and RSI
+    stock_data['SMA_10'] = stock_data['Close'].rolling(window=10).mean()
+    stock_data['SMA_20'] = stock_data['Close'].rolling(window=20).mean()
+    stock_data['EMA_10'] = stock_data['Close'].ewm(span=10, adjust=False).mean()
+    stock_data['EMA_20'] = stock_data['Close'].ewm(span=20, adjust=False).mean()
+    stock_data['RSI_14'] = compute_rsi(stock_data)
+
+    # Drop NaN values
+    stock_data = stock_data.dropna()
+
+    # Select features
+    stock_features = stock_data[['Volume', 'Open', 'Close', 'High', 'Low', 'SMA_10', 'EMA_10', 'RSI_14']].values
+
+    # Store scaled data globally
+    global_data = stock_features if global_data is None else np.vstack((global_data, stock_features))
+
+# Fit global scaler on all stock data
+global_scaler.fit(global_data)
+
+# Process each stock again for training
+for symbol in stock_symbols:
+    stock_data = yf.download(symbol, start=start_date, end=end_date)
     
-    # Split data into training (80%) and testing (20%)
-    train_size = int(len(stock_features) * 0.8)
-    train_data, test_data = stock_features[:train_size], stock_features[train_size:]
+    # Calculate SMA, EMA, and RSI
+    stock_data['SMA_10'] = stock_data['Close'].rolling(window=10).mean()
+    stock_data['SMA_20'] = stock_data['Close'].rolling(window=20).mean()
+    stock_data['EMA_10'] = stock_data['Close'].ewm(span=10, adjust=False).mean()
+    stock_data['EMA_20'] = stock_data['Close'].ewm(span=20, adjust=False).mean()
+    stock_data['RSI_14'] = compute_rsi(stock_data)
+
+    # Drop NaN values
+    stock_data = stock_data.dropna()
+
+    # Select features
+    stock_features = stock_data[['Volume', 'Open', 'Close', 'High', 'Low', 'SMA_10', 'EMA_10', 'RSI_14']].values
     
-    # Scale data using only training data
-    scaler = MinMaxScaler()
-    train_scaled = scaler.fit_transform(train_data)
-    test_scaled = scaler.transform(test_data)
+    # Normalize using the global scaler
+    stock_features_scaled = global_scaler.transform(stock_features)
     
     # Create sequences
-    X_train, y_train = create_sequences(train_scaled, seq_length)
-    X_test, y_test = create_sequences(test_scaled, seq_length)
+    X, y, stock_ids = create_sequences(stock_features_scaled, stock_mapping[symbol], seq_length)
+    all_sequences.append(X)
+    all_labels.append(y)
+    all_stock_ids.append(stock_ids)
 
-    # Define CNN + LSTM model with L2 regularization
-    model = Sequential([
-        Conv1D(filters=64, kernel_size=2, activation='relu', 
-               kernel_regularizer=l2(0.0009), input_shape=(seq_length, 5)),  # L2 regularization
-        Dropout(0.2),
-        LSTM(50, activation='relu', return_sequences=False, 
-             kernel_regularizer=l2(0.0009)),  # L2 regularization
-        Dropout(0.2),
-        Dense(1, kernel_regularizer=l2(0.0009))  # L2 regularization
-    ])
-    
-    model.compile(optimizer='adam', loss='mse')
-    history = model.fit(X_train, y_train, epochs=50, batch_size=32, verbose=0, validation_data=(X_test, y_test))
-    
-    # Evaluate model on test data
-    train_loss = history.history['loss'][-1]  # Get last training loss
-    test_loss = model.evaluate(X_test, y_test, verbose=0)
-    y_pred = model.predict(X_test)
-    mae = mean_absolute_error(y_test, y_pred)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    
-    print(f"Test Loss for {symbol}: {test_loss:.6f}")
-    print(f"MAE for {symbol}: {mae:.6f}")
-    print(f"RMSE for {symbol}: {rmse:.6f}")
-    print(f"Training Loss for {symbol}: {train_loss:.6f}")
+# Convert lists to numpy arrays
+X = np.vstack(all_sequences)
+y = np.concatenate(all_labels)
+stock_ids = np.concatenate(all_stock_ids)
 
-    # Predict the next day's price using the last available sequence
-    last_sequence = np.array(test_scaled[-seq_length:]).reshape(1, seq_length, 5)
-    predicted_price_scaled = model.predict(last_sequence)
-    
-    # Inverse transform only the Close price (index 2)
-    placeholder = np.zeros((1, 5))  # Placeholder array with correct shape
-    placeholder[0, 2] = predicted_price_scaled[0, 0]  # Insert predicted Close price
-    predicted_price = scaler.inverse_transform(placeholder)[0, 2]  # Extract Close price
-    predictions[symbol] = predicted_price
+# Split into training (80%) and testing (20%)
+X_train, X_test, y_train, y_test, stock_ids_train, stock_ids_test = train_test_split(
+    X, y, stock_ids, test_size=0.2, random_state=42, stratify=stock_ids
+)
 
-# Rank stocks based on predictions
-ranked_stocks = pd.DataFrame(list(predictions.items()), columns=['Stock', 'Predicted Price'])
-ranked_stocks = ranked_stocks.sort_values(by='Predicted Price', ascending=False).reset_index(drop=True)
-print(ranked_stocks.head(7))
+# Compute sample weights (more weight to stable stocks)
+volatility = {symbol: np.std(y_train[stock_ids_train == stock_mapping[symbol]]) for symbol in stock_symbols}
+max_volatility = max(volatility.values())
+sample_weights = np.array([max_volatility / volatility[stock_symbols[stock_id]] for stock_id in stock_ids_train])
+
+# Define model with stock embedding
+input_data = Input(shape=(seq_length, 8))  # Updated shape to include RSI
+stock_input = Input(shape=(1,))  # Stock ID input
+
+stock_embedding = Embedding(len(stock_symbols), 3)(stock_input)
+stock_embedding = Flatten()(stock_embedding)
+
+cnn = Conv1D(64, 2, activation='relu', kernel_regularizer=l2(0.0009))(input_data)
+cnn = Dropout(0.2)(cnn)
+
+lstm = LSTM(50, activation='relu', return_sequences=False, kernel_regularizer=l2(0.0009))(cnn)
+lstm = Dropout(0.2)(lstm)
+
+merged = Concatenate()([lstm, stock_embedding])
+output = Dense(1, kernel_regularizer=l2(0.0009))(merged)
+
+model = Model(inputs=[input_data, stock_input], outputs=output)
+model.compile(optimizer='adam', loss='mse')
+
+# Train model with sample weights and track history
+history = model.fit(
+    [X_train, stock_ids_train], y_train, 
+    epochs=50, batch_size=32, verbose=1, 
+    sample_weight=sample_weights,
+    validation_data=([X_test, stock_ids_test], y_test)  # Track validation loss
+)
+
+# Evaluate test loss
+test_loss = model.evaluate([X_test, stock_ids_test], y_test)
+print(f"Test Loss: {test_loss:.4f}")
+
+# Plot training vs. validation loss
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.title('Training vs. Validation Loss')
+plt.show()
+
+# Make predictions
+predictions = model.predict([X_test, stock_ids_test])
+
+# Compute RMSE
+rmse = np.sqrt(mean_squared_error(y_test, predictions))
+print(f"RMSE: {rmse:.4f}")
+
+# Plot actual vs. predicted stock prices
+plt.figure(figsize=(10, 5))
+plt.plot(y_test, label="Actual Prices", color="blue")
+plt.plot(predictions, label="Predicted Prices", color="orange")
+plt.legend()
+plt.title("Actual vs. Predicted Stock Prices")
+plt.xlabel("Test Sample")
+plt.ylabel("Scaled Price")
+plt.show()
+
+# Compute average predicted closing price for each stock
+stock_avg_pred = {symbol: np.mean(predictions[stock_ids_test == stock_mapping[symbol]]) for symbol in stock_symbols}
+
+# Rank stocks from highest to lowest predicted price
+ranked_stocks = sorted(stock_avg_pred.items(), key=lambda x: x[1], reverse=True)
+
+# Display ranked stocks
+print("Stock Rankings (Based on Predicted Closing Price):")
+for rank, (stock, price) in enumerate(ranked_stocks, 1):
+    print(f"{rank}. {stock} - Predicted Avg Price: {price:.2f}")
