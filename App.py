@@ -16,11 +16,11 @@ app = Flask(__name__)
 
 # Define stock symbols
 stock_symbols = ['AAPL', 'GOOGL', 'TSLA', 'AMZN', 'MSFT', 'META', 'NVDA']
-stock_mapping = {symbol: idx for idx, symbol in enumerate(stock_symbols)}
-
 start_date, end_date = '2020-01-01', '2025-03-29'
 seq_length = 60
+
 global_scaler = MinMaxScaler()
+stock_mapping = {symbol: idx for idx, symbol in enumerate(stock_symbols)}
 
 # ------------------------- FUNCTIONS -------------------------
 def compute_rsi(data, window=14):
@@ -28,7 +28,7 @@ def compute_rsi(data, window=14):
     delta = data['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-    rs = gain / loss
+    rs = gain / (loss + 1e-6)
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
@@ -41,12 +41,13 @@ def create_sequences(data, stock_id, seq_length):
         stock_labels.append(stock_id)
     return np.array(X), np.array(y), np.array(stock_labels)
 
+stock_stats = {}
 def load_stock_data():
     """Loads and processes stock data"""
     global global_scaler
     all_sequences, all_labels, all_stock_ids = [], [], []
+    
     global_data = None
-
     for symbol in stock_symbols:
         stock_data = yf.download(symbol, start=start_date, end=end_date)
         if stock_data.empty:
@@ -56,7 +57,15 @@ def load_stock_data():
         stock_data['SMA_10'] = stock_data['Close'].rolling(window=10).mean()
         stock_data['EMA_10'] = stock_data['Close'].ewm(span=10, adjust=False).mean()
         stock_data['RSI_14'] = compute_rsi(stock_data)
-        stock_data = stock_data.dropna()
+        stock_data['Returns'] = stock_data['Close'].pct_change()
+        
+        stock_data.dropna(inplace=True)
+        
+        stock_stats[symbol] = {
+        'mean_return': stock_data['Returns'].mean(),
+        'std_dev': stock_data['Returns'].std(),
+        'rsi': stock_data['RSI_14'].iloc[-1]
+            }
 
         stock_features = stock_data[['Volume', 'Open', 'Close', 'High', 'Low', 'SMA_10', 'EMA_10', 'RSI_14']].values
         global_data = stock_features if global_data is None else np.vstack((global_data, stock_features))
@@ -71,7 +80,7 @@ def load_stock_data():
         stock_data['SMA_10'] = stock_data['Close'].rolling(window=10).mean()
         stock_data['EMA_10'] = stock_data['Close'].ewm(span=10, adjust=False).mean()
         stock_data['RSI_14'] = compute_rsi(stock_data)
-        stock_data = stock_data.dropna()
+        stock_data.dropna(inplace=True)
 
         stock_features = stock_data[['Volume', 'Open', 'Close', 'High', 'Low', 'SMA_10', 'EMA_10', 'RSI_14']].values
         stock_features_scaled = global_scaler.transform(stock_features)
@@ -104,9 +113,9 @@ def build_model():
     return model
 
 # ------------------------- TRAINING -------------------------
-if os.path.exists("stock_price_predictor.h5"):
+if os.path.exists("Stock_Recommendation_Model.h5"):
     print("✅ Loading existing model...")
-    model = load_model("stock_price_predictor.h5", compile=False)
+    model = load_model("Stock_Recommendation_Model.h5", compile=False)
 else:
     print("⏳ Loading stock data...")
     X, y, stock_ids = load_stock_data()
@@ -122,37 +131,65 @@ else:
     print("🎯 Training model...")
     history = model.fit(
         [X_train, stock_ids_train], y_train,
-        epochs=30, batch_size=32, verbose=1,
+        epochs=50, batch_size=32, verbose=1,
         validation_data=([X_test, stock_ids_test], y_test)
     )
 
-    model.save("stock_price_predictor.h5")
+    model.save("Stock_Recommendation_Model.h5")
     print("✅ Model saved!")
+
+
+X, y, stock_ids = load_stock_data()
+
+print("🚀 Splitting data...")
+X_train, X_test, y_train, y_test, stock_ids_train, stock_ids_test = train_test_split(
+    X, y, stock_ids, test_size=0.2, random_state=42
+)
 
 # ------------------------- FLASK ROUTES -------------------------
 @app.route('/rankings', methods=['GET'])
 def stock_rankings():
     print("🔍 Generating predictions...")
-
+    
     try:
-        X_test, _, stock_ids_test = load_stock_data()  # Ensure this function returns values correctly
-
-        if X_test is None or stock_ids_test is None:
-            print("❌ Error: X_test or stock_ids_test is None")
-            return jsonify({"error": "Data loading issue: X_test or stock_ids_test is None"}), 500
+        # Ensure test data exists
+        if X_test is None or stock_ids_test is None or len(X_test) == 0:
+            print("❌ Error: X_test or stock_ids_test is missing")
+            return jsonify({"error": "Data loading issue: X_test or stock_ids_test is None or empty"}), 500
 
         print(f"✅ X_test shape: {X_test.shape}")
         print(f"✅ stock_ids_test shape: {stock_ids_test.shape}")
 
-        predictions = model.predict([X_test, stock_ids_test])  # Possible cause of the error
+        predictions = model.predict([X_test, stock_ids_test])
+        predictions = global_scaler.inverse_transform(np.column_stack([np.zeros((predictions.shape[0], 7)), predictions]))[:, -1]
+        
+        y_test_scaled = global_scaler.inverse_transform(np.column_stack([np.zeros((y_test.shape[0], 7)), y_test]))[:, -1]
 
-        stock_avg_pred = {symbol: np.mean(predictions[stock_ids_test == stock_mapping[symbol]]) for symbol in stock_symbols}
-        ranked_stocks = sorted(stock_avg_pred.items(), key=lambda x: x[1], reverse=True)
+        investment_scores = {}
+        for symbol in stock_symbols:
+            if symbol not in stock_stats:
+                print(f"⚠ Warning: Missing stock stats for {symbol}")
+                continue
+            
+            avg_pred = np.mean(predictions[np.where(stock_ids_test == stock_mapping[symbol])])
+            mean_return = stock_stats[symbol]['mean_return']
+            risk = stock_stats[symbol]['std_dev'] + 1e-6  # Avoid division by zero
+            rsi = stock_stats[symbol]['rsi']
+            rsi_penalty = 1 - abs((rsi - 50) / 100)  # Smoother RSI adjustment
+            
+            investment_score = (mean_return / risk) * avg_pred * rsi_penalty  
+            investment_scores[symbol] = investment_score
 
-        print("✅ Stock rankings generated:", ranked_stocks)  # Debugging line
+        ranked_stocks = sorted(investment_scores.items(), key=lambda x: x[1], reverse=True)
 
-        return jsonify({"rankings": [{"rank": i+1, "stock": stock, "predicted_avg_price": round(float(price), 2)}
-                             for i, (stock, price) in enumerate(ranked_stocks)]})
+        print("✅ Stock rankings generated:", ranked_stocks)
+
+        return jsonify({
+            "rankings": [
+                {"rank": i + 1, "stock": stock, "Investment Score": round(float(score), 2)}
+                for i, (stock, score) in enumerate(ranked_stocks)
+            ]
+        })
     except Exception as e:
         print(f"❌ Error generating rankings: {str(e)}")
         return jsonify({"error": f"Failed to generate rankings: {str(e)}"}), 500
