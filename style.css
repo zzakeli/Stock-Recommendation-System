@@ -1,0 +1,125 @@
+
+
+body{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 97vh;
+    background-color: rgb(238, 238, 238);
+    gap: 1%;
+}
+
+.container{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    height: clamp(500px,46vw,46vw);
+    width: clamp(500px,60vw,60vw);
+    gap: 1%;
+}
+.stock-container, .chat-container, .info-container, .refresh-button, .filter-button{
+    box-shadow: 1px -1px 13px 2px rgba(0,0,0,0.75);
+    -webkit-box-shadow: 1px -1px 13px 2px rgba(0,0,0,0.75);
+    -moz-box-shadow: 1px -1px 13px 2px rgba(0,0,0,0.75);
+}
+
+.stock-container{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90%;
+    width: 100%;
+    border-radius: 10px;
+    background-color: rgb(44, 48, 48);
+}
+
+.button-container{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 10%;
+    width: 100%;
+}
+.left-container, .right-container{
+    display: flex;
+    justify-content: center;
+    align-items:end;
+    height: 100%;
+    width: 100%;
+}
+
+.left-container{
+    justify-content: flex-start;
+}
+.right-container{
+    justify-content: flex-end;
+}
+
+.refresh-button, .filter-button{
+    font-size: clamp(1em,1.5vw,1.5vw);
+    border-radius: 5px;
+    border: none;
+    color: white;
+    padding: 3%;
+    background-color: rgb(75, 75, 75);
+}
+
+.refresh-button:hover, .filter-button:hover{
+    transform: scale(1.05);
+    background-color: rgb(94, 94, 94);
+    cursor: pointer;
+}
+
+.right-panel{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    height: clamp(490px,45vw,45vw);
+    width: clamp(300px,20vw,20vw);
+    position: relative;
+    /* top: 5%; */
+    gap: 1%;
+    /* border: 1px solid; */
+}
+
+.top-panel, .bottom-panel{
+    display: flex;
+    justify-content: center;
+    height: 50%;
+    width: 100%;
+    /* border: 1px solid; */
+}
+.top-panel{
+    align-items: start;
+}
+.bottom-panel{
+    align-items: end;
+}
+
+.chat-container{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90%;
+    width: 100%;
+    border-radius: 10px;
+    border: none;
+    background-color: rgb(59, 63, 63);
+}
+
+.info-container{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 80%;
+    width: 100%;
+    border-radius: 10px;
+    border: none;
+    background-color: rgb(44, 48, 48);
+}
+
+.spacer{
+    height: 10%;
+}
