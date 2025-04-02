@@ -114,21 +114,21 @@ def build_model():
 
 # ------------------------- TRAINING -------------------------
 if os.path.exists("Stock_Recommendation_Model.h5"):
-    print("✅ Loading existing model...")
+    print("Loading existing model...")
     model = load_model("Stock_Recommendation_Model.h5", compile=False)
 else:
     print("⏳ Loading stock data...")
     X, y, stock_ids = load_stock_data()
 
-    print("🚀 Splitting data...")
+    print("Splitting data...")
     X_train, X_test, y_train, y_test, stock_ids_train, stock_ids_test = train_test_split(
         X, y, stock_ids, test_size=0.2, random_state=42
     )
 
-    print("📈 Building model...")
+    print("Building model...")
     model = build_model()
 
-    print("🎯 Training model...")
+    print("Training model...")
     history = model.fit(
         [X_train, stock_ids_train], y_train,
         epochs=50, batch_size=32, verbose=1,
@@ -136,12 +136,12 @@ else:
     )
 
     model.save("Stock_Recommendation_Model.h5")
-    print("✅ Model saved!")
+    print("Model saved!")
 
 
 X, y, stock_ids = load_stock_data()
 
-print("🚀 Splitting data...")
+print("Splitting data...")
 X_train, X_test, y_train, y_test, stock_ids_train, stock_ids_test = train_test_split(
     X, y, stock_ids, test_size=0.2, random_state=42
 )
@@ -149,16 +149,16 @@ X_train, X_test, y_train, y_test, stock_ids_train, stock_ids_test = train_test_s
 # ------------------------- FLASK ROUTES -------------------------
 @app.route('/rankings', methods=['GET'])
 def stock_rankings():
-    print("🔍 Generating predictions...")
+    print("Generating predictions...")
     
     try:
         # Ensure test data exists
         if X_test is None or stock_ids_test is None or len(X_test) == 0:
-            print("❌ Error: X_test or stock_ids_test is missing")
+            print("Error: X_test or stock_ids_test is missing")
             return jsonify({"error": "Data loading issue: X_test or stock_ids_test is None or empty"}), 500
 
-        print(f"✅ X_test shape: {X_test.shape}")
-        print(f"✅ stock_ids_test shape: {stock_ids_test.shape}")
+        print(f"X_test shape: {X_test.shape}")
+        print(f"stock_ids_test shape: {stock_ids_test.shape}")
 
         predictions = model.predict([X_test, stock_ids_test])
         predictions = global_scaler.inverse_transform(np.column_stack([np.zeros((predictions.shape[0], 7)), predictions]))[:, -1]
@@ -182,7 +182,7 @@ def stock_rankings():
 
         ranked_stocks = sorted(investment_scores.items(), key=lambda x: x[1], reverse=True)
 
-        print("✅ Stock rankings generated:", ranked_stocks)
+        print("Stock rankings generated:", ranked_stocks)
 
         return jsonify({
             "rankings": [
@@ -191,7 +191,7 @@ def stock_rankings():
             ]
         })
     except Exception as e:
-        print(f"❌ Error generating rankings: {str(e)}")
+        print(f"Error generating rankings: {str(e)}")
         return jsonify({"error": f"Failed to generate rankings: {str(e)}"}), 500
 
 

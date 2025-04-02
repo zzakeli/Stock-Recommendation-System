@@ -1,4 +1,4 @@
-
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
 
 body{
     display: flex;
@@ -7,6 +7,7 @@ body{
     height: 97vh;
     background-color: rgb(238, 238, 238);
     gap: 1%;
+    font-family: 'Montserrat',Montserrat;
 }
 
 .container{
@@ -26,12 +27,37 @@ body{
 
 .stock-container{
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     height: 90%;
     width: 100%;
     border-radius: 10px;
     background-color: rgb(44, 48, 48);
+    gap: 1%;
+}
+
+.stock{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 10px;
+    background-color: rgb(240, 240, 240);
+    height: 12%;
+    width: 90%;
+    font-weight: 500;
+    font-size: clamp(1em,1.5vw,1.5vw);
+}
+
+.stock:hover{
+    background-color: rgb(255, 255, 255);
+    transform: scale(1.03); 
+    transition: transform 0.3s ease;
+}
+.stock:not(hover){
+    background-color: rgb(255, 255, 255);
+    transform: scale(1); 
+    transition: transform 0.3s ease;
 }
 
 .button-container{
@@ -57,18 +83,26 @@ body{
 }
 
 .refresh-button, .filter-button{
-    font-size: clamp(1em,1.5vw,1.5vw);
     border-radius: 5px;
     border: none;
     color: white;
     padding: 3%;
     background-color: rgb(75, 75, 75);
+    font-family: 'Montserrat',Montserrat;
+    font-weight: 600;
+    font-size: clamp(1em,1.5vw,1.5vw);
 }
 
 .refresh-button:hover, .filter-button:hover{
     transform: scale(1.05);
+    transition: transform 0.2s ease-in;
     background-color: rgb(94, 94, 94);
     cursor: pointer;
+}
+
+.refresh-button:not(hover), .filter-button:not(hover){
+    transform: scale(1);
+    transition: transform 0.2s ease-out;
 }
 
 .right-panel{
@@ -118,6 +152,7 @@ body{
     border-radius: 10px;
     border: none;
     background-color: rgb(44, 48, 48);
+    color: white;
 }
 
 .spacer{

@@ -3,8 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Stock Recommendation System</title>
+    <script src="jquery-3.7.1.min.js"></script>
+    <script src="script.js"></script>
     <link rel="stylesheet" href="style.css" />
+    <title>Stock Recommendation System</title>
   </head>
   <body>
     <div class="container">
@@ -16,7 +18,17 @@
           <button class="filter-button">DESCENDING</button>
         </div>
       </div>
-      <div class="stock-container"></div>
+      <div class="stock-container" id="stock-container">
+        <div onclick="display()" class="stock" id="stock">
+          <label class="stock-name" id="stock-name">APPL</label>
+        </div>
+        <div class="stock">NVDA</div>
+        <div class="stock">AMZN</div>
+        <div class="stock">TSLA</div>
+        <div class="stock">MSFT</div>
+        <div class="stock">META</div>
+        <div class="stock">GOOGL</div>
+      </div>
     </div>
 
     <div class="right-panel">
@@ -28,6 +40,5 @@
         <div class="chat-container"></div>
       </div>
     </div>
-    <script src="script.js"></script>
   </body>
 </html>
