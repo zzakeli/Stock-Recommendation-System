@@ -90,7 +90,11 @@ body{
     background-color: rgb(75, 75, 75);
     font-family: 'Montserrat',Montserrat;
     font-weight: 600;
-    font-size: clamp(1em,1.5vw,1.5vw);
+    font-size: 1.5vw;
+}
+
+.filter-button{
+    width: 45%;
 }
 
 .refresh-button:hover, .filter-button:hover{

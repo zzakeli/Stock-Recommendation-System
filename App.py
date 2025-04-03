@@ -16,7 +16,7 @@ app = Flask(__name__)
 
 # Define stock symbols
 stock_symbols = ['AAPL', 'GOOGL', 'TSLA', 'AMZN', 'MSFT', 'META', 'NVDA']
-start_date, end_date = '2020-01-01', '2025-03-29'
+start_date, end_date = '2020-01-01', '2025-04-03'
 seq_length = 60
 
 global_scaler = MinMaxScaler()

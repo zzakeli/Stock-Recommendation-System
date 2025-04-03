@@ -3,54 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Stock Rankings</title>
-    <script>
-      async function fetchStockRankings() {
-        try {
-          const response = await fetch("/rankings");
-          const data = await response.json();
-
-          if (data.error) {
-            document.getElementById(
-              "stock-rankings"
-            ).innerHTML = `<p>Error: ${data.error}</p>`;
-            return;
-          }
-
-          let tableContent = `
-                    <table border="1">
-                        <tr>
-                            <th>Rank</th>
-                            <th>Stock</th>
-                            <th>Investment Score</th>
-                        </tr>
-                `;
-
-          data.rankings.forEach((rank) => {
-            tableContent += `
-                        <tr>
-                            <td>${rank.rank}</td>
-                            <td>${rank.stock}</td>
-                            <td>${rank["Investment Score"]}</td>
-                        </tr>
-                    `;
-          });
-
-          tableContent += `</table>`;
-          document.getElementById("stock-rankings").innerHTML = tableContent;
-        } catch (error) {
-          document.getElementById(
-            "stock-rankings"
-          ).innerHTML = `<p>Error fetching data</p>`;
-          console.error("Error:", error);
-        }
-      }
-
-      window.onload = fetchStockRankings;
-    </script>
+    <script src="{{ url_for('static', filename='jquery-3.7.1.min.js') }}"></script>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <title>Stock Recommendation System</title>
   </head>
   <body>
-    <h1>Stock Rankings</h1>
-    <div id="stock-rankings">Loading...</div>
+    <div class="container">
+      <div class="button-container">
+        <div class="left-container">
+          <button onclick="refresh()" class="refresh-button">REFRESH</button>
+        </div>
+        <div class="right-container">
+          <button class="filter-button">DESCENDING</button>
+        </div>
+      </div>
+      <div class="stock-container" id="stock-container"></div>
+    </div>
+
+    <div class="right-panel">
+      <div class="spacer"></div>
+      <div class="top-panel">
+        <div class="info-container" id="info-container"></div>
+      </div>
+      <div class="bottom-panel">
+        <div class="chat-container"></div>
+      </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
   </body>
 </html>
