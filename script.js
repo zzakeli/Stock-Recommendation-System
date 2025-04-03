@@ -1,35 +1,29 @@
 const stockContainer = document.querySelector(".stock-container");
 const infoContainer = document.getElementById("info-container");
-const stock = document.getElementById("stock");
+const stock = document.querySelector("stock");
 const stockName = document.getElementById("stock-name");
 
-function display(){
-    infoContainer.innerHTML = stockName.textContent;
-    console.log("Im pressed.");
+$(function(){
+    $(".stock").on('click',function(){
+        infoContainer.innerHTML = this.innerHTML;
+    })
+})
+
+
+function refresh(){
+
 }
 
-// $(function(){s
-//     $(".stock").on('click',function(){
-//         $(".stock").hide();
-//     })
-// })
+function arrange(){
+
+}
+
+function displayDescription(){
+
+}
 
 
-// })
-// function refresh(){
+//this feature will be added later
+function chat(){
 
-// }
-
-// function arrange(){
-
-// }
-
-// function displayDescription(){
-
-// }
-
-
-// //this feature will be added later
-// function chat(){
-
-// }
+}
