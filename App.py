@@ -14,27 +14,52 @@ import os
 
 app = Flask(__name__)
 
-# Define stock symbols
+""" 
+    ONLY 7 STOCKS ARE HARD CODED TO TRAIN MODEL FASTER,
+    WITH DEFINED STARTING AND ENDING FRAME.
+    SEQUENCE LENGTH ARE DEFINED TO CREATE A WINDOW
+    FOR THE MODEL TO TRAIN, AND THE MODEL WILL BASED
+    FROM THE STARTING TO ENDING DATE MINUS SEQUENCE LENGTH.
+    
+"""
 stock_symbols = ['AAPL', 'GOOGL', 'TSLA', 'AMZN', 'MSFT', 'META', 'NVDA']
 start_date, end_date = '2020-01-01', '2025-04-03'
 seq_length = 60
 
+"""
+    THE GLOBAL_SCALER BALANCES THE FEATURES:
+    ['Volume', 'Open', 'Close', 'High', 'Low', 'SMA_10', 'EMA_10', 'RSI_14']
+    WHICH NORMALIZE THE FEATURES INTO THE SAME SCALE BETWEEN 1 AND 0.
+"""
 global_scaler = MinMaxScaler()
+
+"""
+    CONVERTS THE THE STOCKS FROM 0 TO 6 TO FEED ON EMBEDDINGS
+    THEN CONVERT IT INTO A NUMERICAL DATA DISTINCTLY.
+"""
 stock_mapping = {symbol: idx for idx, symbol in enumerate(stock_symbols)}
 
-# ------------------------- FUNCTIONS -------------------------
+"""
+    COMPUTES THE RSI USING THE DEFAULT 14 DAY PERIOD
+    USING THE STARTING AND ENDING TIMEFRAME DATA.
+"""
 def compute_rsi(data, window=14):
-    """Computes the Relative Strength Index (RSI)"""
-    delta = data['Close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-    rs = gain / (loss + 1e-6)
-    rsi = 100 - (100 / (1 + rs))
+    delta = data['Close'].diff() #COMPARES THE CLOSING PRICES, TODAY AND YESTERDAY
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean() #SEPERATES THE GAINS
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean() #SEPERATES THE LOSSES
+    rs = gain / (loss + 1e-6) #RELATIVE STRENGTH COMPUTATION
+    rsi = 100 - (100 / (1 + rs)) #RELATIVE STRENGTH INDEX FORMULA, CAN BE 0 TO 100
     return rsi
 
+"""
+    DATA - STOCK FEATURES AS INPUT ['Volume', 'Open', 'Close', 'High', 'Low', 'SMA_10', 'EMA_10', 'RSI_14']
+    STOCK_ID - NUMERICAL DATA REPRESENTATION OF EACH STOCK DISTINCTLY.
+    SEQ_LENGTH - THE WINDOW FOR TRAINING MODEL DATA. 
+    
+    INITIALIZES THE INPUT TO FEED ON LSTM MODEL. 
+"""
 def create_sequences(data, stock_id, seq_length):
-    """Creates sequences for LSTM"""
-    X, y, stock_labels = [], [], []
+    X, y, stock_labels = [], [], [] #CREATES LIST FOR X,Y, STOCK_LABELS
     for i in range(len(data) - seq_length):
         X.append(data[i:i + seq_length])
         y.append(data[i + seq_length, 2])  # Predict Close price
@@ -43,7 +68,7 @@ def create_sequences(data, stock_id, seq_length):
 
 stock_stats = {}
 def load_stock_data():
-    """Loads and processes stock data"""
+    #Loads and processes stock data
     global global_scaler
     all_sequences, all_labels, all_stock_ids = [], [], []
     
@@ -51,7 +76,7 @@ def load_stock_data():
     for symbol in stock_symbols:
         stock_data = yf.download(symbol, start=start_date, end=end_date)
         if stock_data.empty:
-            print(f"⚠ Warning: No data found for {symbol}")
+            print(f"No data found for {symbol}")
             continue
 
         stock_data['SMA_10'] = stock_data['Close'].rolling(window=10).mean()
@@ -93,7 +118,7 @@ def load_stock_data():
     return np.vstack(all_sequences), np.concatenate(all_labels), np.concatenate(all_stock_ids)
 
 def build_model():
-    """Builds the stock prediction model"""
+    #Builds the stock prediction model
     input_data = Input(shape=(seq_length, 8))
     stock_input = Input(shape=(1,))
     stock_embedding = Embedding(len(stock_symbols), 3)(stock_input)
@@ -114,21 +139,21 @@ def build_model():
 
 # ------------------------- TRAINING -------------------------
 if os.path.exists("Stock_Recommendation_Model.h5"):
-    print("Loading existing model...")
+    print("Loading existing model")
     model = load_model("Stock_Recommendation_Model.h5", compile=False)
 else:
-    print("⏳ Loading stock data...")
+    print("Loading stock data")
     X, y, stock_ids = load_stock_data()
 
-    print("Splitting data...")
+    print("Splitting data")
     X_train, X_test, y_train, y_test, stock_ids_train, stock_ids_test = train_test_split(
         X, y, stock_ids, test_size=0.2, random_state=42
     )
 
-    print("Building model...")
+    print("Building model")
     model = build_model()
 
-    print("Training model...")
+    print("Training model")
     history = model.fit(
         [X_train, stock_ids_train], y_train,
         epochs=50, batch_size=32, verbose=1,
@@ -136,12 +161,12 @@ else:
     )
 
     model.save("Stock_Recommendation_Model.h5")
-    print("Model saved!")
+    print("Model saved.")
 
 
 X, y, stock_ids = load_stock_data()
 
-print("Splitting data...")
+print("Splitting data")
 X_train, X_test, y_train, y_test, stock_ids_train, stock_ids_test = train_test_split(
     X, y, stock_ids, test_size=0.2, random_state=42
 )
@@ -149,7 +174,7 @@ X_train, X_test, y_train, y_test, stock_ids_train, stock_ids_test = train_test_s
 # ------------------------- FLASK ROUTES -------------------------
 @app.route('/rankings', methods=['GET'])
 def stock_rankings():
-    print("Generating predictions...")
+    print("Generating predictions")
     
     try:
         # Ensure test data exists
@@ -168,7 +193,7 @@ def stock_rankings():
         investment_scores = {}
         for symbol in stock_symbols:
             if symbol not in stock_stats:
-                print(f"⚠ Warning: Missing stock stats for {symbol}")
+                print(f"Missing stock stats for {symbol}")
                 continue
             
             avg_pred = np.mean(predictions[np.where(stock_ids_test == stock_mapping[symbol])])

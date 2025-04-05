@@ -20,7 +20,7 @@ async function fetchStockRankings(){
         }
 
         data.rankings.forEach((rank) => {
-            stockContainer.innerHTML += `<div onclick="display('${rank.stock}')" class="stock" id="${rank.stock}">${rank.rank}, ${rank.stock}, ${rank['Investment Score']}</div>`;
+            stockContainer.innerHTML += `<div onclick="display('${rank.stock}')" class="stock" id="${rank.stock}">${rank.rank}, ${rank.stock}, ${rank["Investment Score"]}</div>`;
         });
 
     } catch (error) {
@@ -59,7 +59,6 @@ const descending= () =>{
 
 }
 
-// main code for calling API
 function refresh(){
     stockContainer.innerHTML = "";
     fetchStockRankings();
