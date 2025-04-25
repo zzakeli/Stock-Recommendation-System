@@ -20,16 +20,37 @@
           <button class="filter-button">DESCENDING</button>
         </div>
       </div>
-      <div class="stock-container" id="stock-container"></div>
+      <div class="table-wrapper" id="table-wrapper">
+        <table class="table-container" id="table-container">
+          <thead>
+            <tr class="header-container">
+              <th>Rank</th>
+              <th>Stock</th>
+              <th>Price</th>
+              <th>Change</th>
+              <th>Change %</th>
+              <th>Volume</th>
+              <th>Predicted Price</th>
+            </tr>
+          </thead>
+          <tbody class="stock-container" id="stock-container"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="right-panel">
       <div class="spacer"></div>
       <div class="top-panel">
-        <div class="info-container" id="info-container"></div>
+        <div class="info-container" id="info-container">
+          <div class="attributes" id="stock-name-container"></div>
+          <div class="attributes" id="investment-score-container"></div>
+          <div class="attributes" id="risk-container"></div>
+          <div class="attributes" id="rsi-penalty-container"></div>
+          <div class="attributes" id="mean-return-container"></div>
+        </div>
       </div>
       <div class="bottom-panel">
-        <div class="chat-container"></div>
+        <div class="chat-container">CHAT BOT HERE</div>
       </div>
     </div>
 

@@ -11,8 +11,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from flask import render_template
 import os
+from datetime import date
 
 app = Flask(__name__)
+
 
 """ 
     ONLY 7 STOCKS ARE HARD CODED TO TRAIN MODEL FASTER,
@@ -23,7 +25,8 @@ app = Flask(__name__)
     
 """
 stock_symbols = ['AAPL', 'GOOGL', 'TSLA', 'AMZN', 'MSFT', 'META', 'NVDA']
-start_date, end_date = '2020-01-01', '2025-04-03'
+start_date ='2024-01-01'
+end_date = str(date.today())
 seq_length = 60
 
 """
@@ -138,9 +141,9 @@ def build_model():
     return model
 
 # ------------------------- TRAINING -------------------------
-if os.path.exists("Stock_Recommendation_Model.h5"):
+if os.path.exists("Stock_Market_Recommendation_Model.h5"):
     print("Loading existing model")
-    model = load_model("Stock_Recommendation_Model.h5", compile=False)
+    model = load_model("Stock_Market_Recommendation_Model.h5", compile=False)
 else:
     print("Loading stock data")
     X, y, stock_ids = load_stock_data()
@@ -160,16 +163,12 @@ else:
         validation_data=([X_test, stock_ids_test], y_test)
     )
 
-    model.save("Stock_Recommendation_Model.h5")
+    model.save("Stock_Market_Recommendation_Model.h5")
     print("Model saved.")
 
 
 X, y, stock_ids = load_stock_data()
 
-print("Splitting data")
-X_train, X_test, y_train, y_test, stock_ids_train, stock_ids_test = train_test_split(
-    X, y, stock_ids, test_size=0.2, random_state=42
-)
 
 # ------------------------- FLASK ROUTES -------------------------
 @app.route('/rankings', methods=['GET'])
@@ -178,19 +177,32 @@ def stock_rankings():
     
     try:
         # Ensure test data exists
+        
+        print("Splitting data")
+        X_train, X_test, y_train, y_test, stock_ids_train, stock_ids_test = train_test_split(
+        X, y, stock_ids, test_size=0.2, random_state=42)
+        
         if X_test is None or stock_ids_test is None or len(X_test) == 0:
             print("Error: X_test or stock_ids_test is missing")
             return jsonify({"error": "Data loading issue: X_test or stock_ids_test is None or empty"}), 500
 
-        print(f"X_test shape: {X_test.shape}")
-        print(f"stock_ids_test shape: {stock_ids_test.shape}")
+        # print(f"X_test shape: {X_test.shape}")
+        # print(f"stock_ids_test shape: {stock_ids_test.shape}")
 
         predictions = model.predict([X_test, stock_ids_test])
-        predictions = global_scaler.inverse_transform(np.column_stack([np.zeros((predictions.shape[0], 7)), predictions]))[:, -1]
-        
-        y_test_scaled = global_scaler.inverse_transform(np.column_stack([np.zeros((y_test.shape[0], 7)), y_test]))[:, -1]
+
+        # Reconstruct full input shape with predicted close prices at index 2
+        pred_temp = np.zeros((predictions.shape[0], 8))
+        pred_temp[:, 2] = predictions[:, 0]  # 'Close' was the 3rd feature (index 2)
+        predictions = global_scaler.inverse_transform(pred_temp)[:, 2]
+
+        y_temp = np.zeros((y_test.shape[0], 8))
+        y_temp[:, 2] = y_test
+        y_test = global_scaler.inverse_transform(y_temp)[:, 2]
 
         investment_scores = {}
+        avg_preds = {}
+        debug_data = {}
         for symbol in stock_symbols:
             if symbol not in stock_stats:
                 print(f"Missing stock stats for {symbol}")
@@ -204,17 +216,62 @@ def stock_rankings():
             
             investment_score = (mean_return / risk) * avg_pred * rsi_penalty  
             investment_scores[symbol] = investment_score
+            avg_preds[symbol] = avg_pred
+            
+            debug_data[symbol] = {
+            'mean_return': round(mean_return, 4),
+            'risk': round(risk, 4),
+            'rsi_penalty': round(rsi_penalty, 2),
+            'predicted_price': round(avg_pred, 2),
+            'investment_score': round(investment_score, 2)
+            }
 
         ranked_stocks = sorted(investment_scores.items(), key=lambda x: x[1], reverse=True)
+        
+        live_data = {}
+        for symbol in stock_symbols:
+            try:
+                ticker = yf.Ticker(symbol)
+                todays_data = ticker.history(period="1d")
+                if not todays_data.empty:
+                    latest = todays_data.iloc[-1]
+                    prev_close = ticker.info.get("previousClose", 0)
+                    price = latest["Close"]
+                    change = price - prev_close
+                    change_percent = (change / prev_close) * 100 if prev_close else 0
+                    volume = latest["Volume"]
+                    live_data[symbol] = {
+                        "current_price": round(price, 2),
+                        "change": round(change, 2),
+                        "change_percent": round(change_percent, 2),
+                        "volume": int(volume)
+                    }
+            except Exception as e:
+                print(f"Error fetching live data for {symbol}: {e}")
+                live_data[symbol] = {
+                "current_price": None,
+                "change": None,
+                "change_percent": None,
+                "volume": None
+            }
 
         print("Stock rankings generated:", ranked_stocks)
 
         return jsonify({
-            "rankings": [
-                {"rank": i + 1, "stock": stock, "Investment Score": round(float(score), 2)}
-                for i, (stock, score) in enumerate(ranked_stocks)
-            ]
-        })
+            "rankings": [{
+            "rank": i + 1,
+            "stock": stock,
+            "investment score": debug_data[stock]['investment_score'],
+            "predicted price": debug_data[stock]['predicted_price'],
+            "mean return": debug_data[stock]['mean_return'],
+            "risk": debug_data[stock]['risk'],
+            "rsi penalty": debug_data[stock]['rsi_penalty'],
+            "price": live_data[stock]["current_price"],
+            "change": live_data[stock]["change"],
+            "change percent": live_data[stock]["change_percent"],
+            "volume": live_data[stock]["volume"]}
+            for i, (stock, score) in enumerate(ranked_stocks)]})
+
     except Exception as e:
         print(f"Error generating rankings: {str(e)}")
         return jsonify({"error": f"Failed to generate rankings: {str(e)}"}), 500
