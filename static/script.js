@@ -7,6 +7,8 @@ const stockRisk = document.getElementById("risk-container");
 const rsiPenalty = document.getElementById("rsi-penalty-container");
 const meanReturn = document.getElementById("mean-return-container");
 
+let stocks = [];
+
 function display(rank,stock,risk,penalty,mean,score){
     infoContainer.style.display = 'flex';
     stockName.innerHTML = `<strong>${stock}</strong>`;
@@ -54,6 +56,9 @@ async function fetchStockRankings(){
                 <td>${rank['volume']}</td>   
                 <td>${rank['predicted price']}</td>                   
             </tr>`;
+
+            let values = [rank['rank'], rank['stock'], rank['price'], rank['change'], rank['change percent'], rank['volume'], rank['predicted price'], rank['risk'], rank['rsi penalty'], rank['mean return'], rank['investment score']];
+            stocks.push(values);
             // stockContainer.innerHTML += `<div onclick="display()" class="stock" id="">${rank['stock']},${rank['Investment Score']}, ${rank['Prediction']}</div>`;
         });
 
@@ -64,14 +69,7 @@ async function fetchStockRankings(){
 }
 
 $(function(){
-    // let stocks = ["APPL","NVDA","AMZN","TSLA","MSFT","META","GOOGL"];
-    // for(let i = 0; i < stocks.length; i++){
-    //     stockContainer.innerHTML += `<div onclick="display('${stocks[i]}')" class="stock" id="${stocks[i]}">${stocks[i]}</div>`;
-    // }
-    // $(".stock").on('click',function(){
-    //     infoContainer.innerHTML = this.innerHTML;
-    // })
-    let filterSwitch = true;
+    let filterSwitch = false;
     $(".filter-button").on('click',function(){
         if(filterSwitch){
             filterButton.textContent = "ASCENDING";
@@ -87,10 +85,50 @@ $(function(){
 })
 
 const ascending = () =>{
+    let temp = [];
+    for(let i = 0; i < 7; i++){
+        for(let j = 0; j < 7 - 1; j++){
+            if(stocks[j][0] > stocks[j + 1][0]){
+                temp = stocks[j];
+                stocks[j] = stocks[j + 1];
+                stocks[j + 1] = temp;
+            }
+        }
+    }
 
+    displayRankings();
 }
-const descending= () =>{
 
+function displayRankings(){
+    stockContainer.innerHTML = "";
+    for(let i = 0; i < 7; i++){
+        stockContainer.innerHTML += `
+         <tr onclick="display('${stocks[i][0]}','${stocks[i][1]}','${stocks[i][7]}','${stocks[i][8]}','${stocks[i][9]}','${stocks[i][10]}')" id="${stocks[i][1]}">
+            <td>${stocks[i][0]}</td>   
+            <td>${stocks[i][1]}</td>
+            <td>${stocks[i][2]}</td>
+            <td>${stocks[i][3]}</td>
+            <td>${stocks[i][4]}</td>   
+            <td>${stocks[i][5]}</td>   
+            <td>${stocks[i][6]}</td>                   
+        </tr>
+        `;
+    }
+}
+
+const descending= () =>{
+    let temp = [];
+    for(let i = 0; i < 7; i++){
+        for(let j = 0; j < 7 - 1; j++){
+            if(stocks[j][0] < stocks[j + 1][0]){
+                temp = stocks[j];
+                stocks[j] = stocks[j + 1];
+                stocks[j + 1] = temp;
+            }
+        }
+    }
+
+    displayRankings();
 }
 
 function refresh(){
