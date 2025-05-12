@@ -8,9 +8,11 @@
       rel="stylesheet"
       href="{{ url_for('static', filename='style.css') }}"
     />
+    <!-- <link rel="stylesheet" href="/static/style.css" /> -->
     <title>Stock Recommendation System</title>
   </head>
   <body>
+    
     <div class="container">
       <div class="button-container">
         <div class="left-container">
@@ -50,7 +52,14 @@
         </div>
       </div>
       <div class="bottom-panel">
-        <div class="chat-container">CHAT BOT HERE</div>
+        <div class="chat-container">
+          <div class="chat-messages"></div>
+          <div class="input-container">
+              <input class="message-input" type="text" placeholder="Ask financial questions...">
+              <button class="send-message">Send</button>
+          </div>
+        </div>
+        </div>
       </div>
     </div>
 
