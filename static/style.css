@@ -21,8 +21,8 @@ body{
 }
 .table-wrapper, .chat-container, .refresh-button, .attributes, .filter-button{
     box-shadow: 1px -1px 13px 2px rgba(0,0,0,0.75);
-    -webkit-box-shadow: 1px -1px 13px 2px rgba(0,0,0,0.75);
-    -moz-box-shadow: 1px -1px 13px 2px rgba(0,0,0,0.75);
+    -webkit-box-shadow: 1px -1px 13px 2px rgba(0,0,0,0.15);
+    -moz-box-shadow: 1px -1px 13px 2px rgba(0,0,0,0.15);
 }
 .table-wrapper{
     display: flex;
@@ -71,21 +71,32 @@ body{
     border-radius: 5px;
     border: none;
     padding: 3%;
-    background-color: rgb(239, 239, 239);
     font-family: 'Montserrat',Montserrat;
     font-weight: 600;
     font-size: 1.5vw;
 }
+.refresh-button{
+    background-color: rgb(106, 167, 210);
+    color: rgb(247, 247, 247);
+}
 
 .filter-button{
+    background-color: rgb(100, 171, 100);
+    color: rgb(247, 247, 247);
     width: 45%;
 }
 
 .refresh-button:hover, .filter-button:hover{
     transform: scale(1.05);
     transition: transform 0.2s ease-in;
-    background-color: rgb(255, 255, 255);
     cursor: pointer;
+}
+
+.filter-button:hover{
+     background-color: rgb(121, 188, 121);
+}
+.refresh-button:hover{
+    background-color: rgb(111, 182, 233);
 }
 
 .refresh-button:not(hover), .filter-button:not(hover){

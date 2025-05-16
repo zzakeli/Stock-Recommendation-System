@@ -95,12 +95,20 @@ function displayRankings() {
             <td>${stocks[i][0]}</td>   
             <td>${stocks[i][1]}</td>
             <td>${stocks[i][2]}</td>
-            <td>${stocks[i][3]}</td>
-            <td>${stocks[i][4]}</td>   
+            <td id="${stocks[i][3]}">${stocks[i][3]}</td>
+            <td id="${stocks[i][4]}">${stocks[i][4]}</td>   
             <td>${stocks[i][5]}</td>   
             <td>${stocks[i][6]}</td>                   
         </tr>
         `;
+
+        if(parseFloat(stocks[i][3]) < 0){
+            document.getElementById(`${stocks[i][3]}`).style.color = 'rgb(229, 62, 62)';
+            document.getElementById(`${stocks[i][4]}`).style.color = 'rgb(229, 62, 62)';
+        }else{
+            document.getElementById(`${stocks[i][3]}`).style.color = 'rgb(90, 229, 62)';
+            document.getElementById(`${stocks[i][4]}`).style.color = 'rgb(90, 229, 62)';
+        }
     }
 }
 
